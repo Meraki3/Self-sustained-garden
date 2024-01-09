@@ -1,0 +1,91 @@
+#include "Adafruit_seesaw.h" //This library includes the functions and object definitions necessary to use the sensor 
+ #include <SPI.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+Adafruit_seesaw ss; //Initialize the ss ("seesaw") object, which represents the sensor
+ 
+const int array_len = 4; //Change this value to adjust the size of the "moving window" array to calculate over-time average 
+                         //NOTE: this variable must be defined as constant for the array memory allocation to be successful
+float reading_array[array_len]; //Initialize "moving window" array
+int array_pos = 0; //Variable to use to walk through indices of array
+float capread_avg = 0; //Variable to use to store average capacitance reading
+int is_wet = 0; //Variable to indicate whether sensed environment is wet (1) or dry (0)
+Adafruit_SSD1306 display = Adafruit_SSD1306(128, 32, &Wire);
+
+byte compteur;
+
+void setup() {
+  Serial.begin(460800); //Initialize the serial monitor at a 115,200 baud rate
+  
+  if (!ss.begin(0x36)) { //Check to see if sensor is successfully connected to Arduino board
+    Serial.println("ERROR! seesaw not found");
+    while(1) delay(1);
+  } else {
+    Serial.print("seesaw started! version: ");
+    Serial.println(ss.getVersion(), HEX);
+  }
+ 
+
+ 	Serial.println("OLED intialized");
+ 	display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // Address 0x3C for 128x32
+
+ 	display.display();
+ 	delay(1000);
+
+ 	// Clear the buffer.
+ 	display.clearDisplay();
+ 	display.display();
+
+ 	// text display tests
+ 	display.setTextSize(1);
+ 	display.setTextColor(WHITE);
+}
+ 
+void loop() {
+  float tempC = ss.getTemp(); //Using the library, obtain temperature reading from the sensor
+  uint16_t capread = ss.touchRead(0); //Using the library, obtain capacative touch sensor reading from sensor
+ 
+  if (array_pos >= array_len) { //Checking to see if we've reached the end of the array
+    array_pos = 0; //If we have, go back to first position and start replacing values there
+  }
+  reading_array[array_pos] = capread; //Put newest capacitive reading into array
+  array_pos++;
+ 
+  capread_avg = 0; //Set up variable to calculate average
+  for (int i = 0; i < array_len; i++) {
+    capread_avg += reading_array[i]; //Add together all values in array
+  }
+  capread_avg = capread_avg / array_len; //Divide by length of array to get average
+ 
+  if (capread_avg > 400) { //Check averaged measurement to see if environment is wet, and adjust is_wet accordingly
+    is_wet = 1;
+  } else {
+    is_wet = 0;
+  }
+ 
+  //Print resulting readings to the serial monitor
+  Serial.print("Temperature Reading: "); Serial.print(tempC); Serial.println("*C");
+  Serial.print("Capacitive Reading: "); Serial.println(capread_avg);
+  Serial.print("Soil Moisture Status: ");
+  if (is_wet == 1) { Serial.println("Wet"); } else { Serial.println("Not Wet"); }
+ 
+
+ 	for (compteur = 0 ; compteur < 25 ; compteur++) {
+ 			display.clearDisplay();
+ 			display.setCursor(0, 0);
+ 			display.println("test compteur");
+ 			display.print("compteur: ");
+ 			display.println(compteur);
+ 			display.display();
+ 		 delay(500); //Wait before taking next reading
+	
+ 	}
+ 
+  delay(100); //Wait before taking next reading
+
+}
+
+
+
+
